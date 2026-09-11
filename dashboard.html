@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studienassistent</title>
+<style>
+:root{
+  --bg:#151824;
+  --seite:#1B1E2C;
+  --karte:#212536;
+  --karte2:#272B3E;
+  --rand:#2E3348;
+  --text:#EBEDF5;
+  --dim:#8A90AC;
+  --blau:#4C7DF0;
+  --gelb:#F5B544;
+  --gruen:#35C88F;
+  --lila:#A855F7;
+  --rot:#F45B69;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;
+  line-height:1.5;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+.layout{display:flex;min-height:100vh}
+
+/* ---------- Seitenleiste ---------- */
+.seitenleiste{width:216px;flex-shrink:0;background:var(--seite);padding:26px 16px;
+  display:flex;flex-direction:column;gap:6px}
+.marke{display:flex;align-items:center;gap:10px;padding:0 8px 24px;font-size:17px;font-weight:600}
+.marke .punkt{width:26px;height:26px;border-radius:9px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--blau),var(--lila))}
+.nav{display:flex;flex-direction:column;gap:3px}
+.nav button{display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;border:0;
+  border-radius:11px;background:transparent;color:var(--dim);font-family:var(--sans);font-size:14px;
+  cursor:pointer;text-align:left;transition:background .15s,color .15s}
+.nav button:hover{background:var(--karte);color:var(--text)}
+.nav button.aktiv{background:var(--karte);color:var(--text);font-weight:500}
+.nav button svg{width:17px;height:17px;flex-shrink:0;opacity:.85}
+.trenner{height:1px;background:var(--rand);margin:18px 8px}
+.hinweis{margin-top:auto;background:var(--karte);border-radius:14px;padding:15px;font-size:12.5px;color:var(--dim)}
+.hinweis b{color:var(--text);display:block;margin-bottom:5px;font-size:13px;font-weight:600}
+
+/* ---------- Hauptbereich ---------- */
+.haupt{flex:1;padding:24px 28px 70px;min-width:0}
+.kopf{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:22px}
+.kopf h1{font-size:26px;font-weight:600;margin:0;letter-spacing:-.02em}
+.datumsfeld{background:var(--karte);border:1px solid var(--rand);border-radius:11px;
+  padding:8px 14px;font-size:13px;color:var(--dim)}
+.wetterfeld{display:flex;align-items:center;gap:11px;background:var(--karte);border-radius:14px;padding:9px 16px}
+.wetterfeld .temp{font-size:22px;font-weight:600}
+.wetterfeld small{color:var(--dim);font-size:12px;display:block}
+
+/* ---------- Karten ---------- */
+.karten{display:grid;gap:16px;margin-bottom:16px}
+.k4{grid-template-columns:repeat(4,1fr)}
+.k2{grid-template-columns:2fr 1fr}
+.k1{grid-template-columns:1fr}
+.karte{background:var(--karte);border-radius:16px;padding:19px 21px}
+.karte h2{font-size:15px;font-weight:600;margin:0 0 16px;display:flex;justify-content:space-between;
+  align-items:center;gap:12px}
+.karte h2 .zusatz{font-size:12.5px;color:var(--dim);font-weight:400}
+
+/* Kennzahl */
+.kennzahl .oben{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+.kennzahl .titel{font-size:13.5px;color:var(--dim)}
+.kennzahl .icon{width:32px;height:32px;border-radius:10px;background:var(--karte2);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kennzahl .icon svg{width:16px;height:16px}
+.kennzahl .wert{font-size:33px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+.kennzahl .fuss{font-size:12px;color:var(--dim);margin-top:6px}
+.hoch{color:var(--gruen)} .runter{color:var(--rot)} .warn{color:var(--gelb)}
+
+/* Ring */
+.ringzeile{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.ring{position:relative;width:158px;height:158px;flex-shrink:0}
+.ring .mitte{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .mitte b{font-size:25px;font-weight:600;letter-spacing:-.02em}
+.ring .mitte span{font-size:11.5px;color:var(--dim)}
+.legende{flex:1;min-width:150px;display:flex;flex-direction:column;gap:9px}
+.legende div{display:flex;align-items:center;gap:9px;font-size:13px}
+.legende i{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.legende .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.legende .v{color:var(--dim);font-size:12.5px}
+
+/* Balken */
+.diagramm{display:flex;align-items:flex-end;gap:9px;height:190px;padding-top:10px}
+.saeule{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:8px;height:100%}
+.saeule .stab{width:100%;max-width:34px;background:var(--karte2);border-radius:7px;
+  display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;flex:1}
+.saeule .stab i{display:block;background:var(--blau);border-radius:7px;min-height:3px}
+.saeule .marke{font-size:11px;color:var(--dim);white-space:nowrap}
+.saeule .zahl{font-size:11.5px;color:var(--text);height:14px}
+
+/* Modulliste */
+.modulzeile{padding:11px 0;border-bottom:1px solid var(--rand)}
+.modulzeile:last-child{border-bottom:0}
+.modulzeile .z1{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:7px}
+.modulzeile .nm{font-weight:500;font-size:13.5px}
+.modulzeile .st{font-size:13.5px;color:var(--dim)}
+.spur{height:7px;background:var(--karte2);border-radius:4px;overflow:hidden;position:relative}
+.spur i{display:block;height:100%;border-radius:4px}
+.modulzeile .z2{font-size:12px;color:var(--dim);margin-top:6px}
+
+/* Tabelle */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11.5px;font-weight:500;color:var(--dim);padding:0 10px 11px}
+td{padding:11px 10px;font-size:13px;border-top:1px solid var(--rand)}
+tr.reihe td:first-child{border-radius:10px 0 0 10px}
+tr.reihe td:last-child{border-radius:0 10px 10px 0;text-align:right}
+.pille{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11.5px;font-weight:500}
+.p-rot{background:rgba(244,91,105,.15);color:var(--rot)}
+.p-gelb{background:rgba(245,181,68,.15);color:var(--gelb)}
+.p-blau{background:rgba(76,125,240,.15);color:var(--blau)}
+.p-gruen{background:rgba(53,200,143,.15);color:var(--gruen)}
+
+/* Stundenplan */
+.plan{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+.tag{background:var(--karte2);border-radius:13px;padding:12px;min-height:120px}
+.tag h3{margin:0 0 9px;font-size:12px;font-weight:600;color:var(--dim)}
+.tag.heute h3{color:var(--blau)}
+.block{font-size:12.5px;padding:8px 10px;margin-bottom:6px;background:var(--karte);
+  border-radius:9px;border-left:3px solid var(--blau)}
+.block .zeit{color:var(--dim);font-size:11px;display:block;margin-bottom:1px}
+
+/* Formulare */
+.formkarte{background:var(--karte);border-radius:16px;padding:19px 21px;margin-bottom:16px}
+.form{display:flex;flex-wrap:wrap;gap:11px;align-items:flex-end}
+label{font-size:11.5px;color:var(--dim);display:block;margin-bottom:5px}
+input,select{font-family:var(--sans);font-size:13.5px;padding:9px 11px;border:1px solid var(--rand);
+  background:var(--karte2);color:var(--text);border-radius:10px;min-width:118px}
+input:focus,select:focus{outline:none;border-color:var(--blau)}
+button.tat{font-family:var(--sans);font-size:13.5px;font-weight:500;padding:10px 19px;border:0;
+  background:var(--blau);color:#fff;border-radius:10px;cursor:pointer}
+button.tat:hover{background:#3D6BDD}
+button.leise{background:var(--karte2);color:var(--text)}
+button.leise:hover{background:var(--rand)}
+button:focus-visible{outline:2px solid var(--lila);outline-offset:2px}
+.weg{background:none;border:0;color:var(--dim);cursor:pointer;font-size:16px;padding:0 4px;line-height:1}
+.weg:hover{color:var(--rot)}
+.leer{color:var(--dim);font-size:13px;padding:26px 0;text-align:center}
+.sicht{display:none}
+.sicht.an{display:block}
+@media(max-width:1000px){
+  .k4{grid-template-columns:repeat(2,1fr)}
+  .k2{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  .layout{flex-direction:column}
+  .seitenleiste{width:100%;padding:16px}
+  .nav{flex-direction:row;overflow-x:auto}
+  .nav button{white-space:nowrap}
+  .hinweis,.trenner{display:none}
+  .haupt{padding:18px 16px 60px}
+  .plan{grid-template-columns:1fr}
+  .tag{min-height:auto}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <aside class="seitenleiste">
+    <div class="marke"><span class="punkt"></span>Studienassistent</div>
+    <nav class="nav" id="nav">
+      <button class="aktiv" data-sicht="uebersicht">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Übersicht</button>
+      <button data-sicht="stundenplan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        Stundenplan</button>
+      <button data-sicht="module">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+        Module</button>
+      <button data-sicht="erfassen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Erfassen</button>
+      <button data-sicht="daten">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+        Daten</button>
+    </nav>
+    <div class="trenner"></div>
+    <div class="hinweis">
+      <b>Nur auf diesem Gerät</b>
+      Die Daten liegen im Browser. Sichere sie regelmäßig unter „Daten“.
+    </div>
+  </aside>
+
+  <main class="haupt">
+    <div class="kopf">
+      <div>
+        <h1 id="sichtTitel">Übersicht</h1>
+        <div style="color:var(--dim);font-size:13px;margin-top:3px" id="heuteText"></div>
+      </div>
+      <div class="wetterfeld" id="wetter"><span class="temp">--</span><small>Wetter wird geladen</small></div>
+    </div>
+
+    <!-- ============ ÜBERSICHT ============ -->
+    <div class="sicht an" id="s-uebersicht">
+      <div class="karten k4" id="kennzahlen"></div>
+
+      <div class="karten k2">
+        <div class="karte">
+          <h2>Lernzeit je Woche <span class="zusatz">letzte 8 Wochen</span></h2>
+          <div class="diagramm" id="wochenDiagramm"></div>
+        </div>
+        <div class="karte">
+          <h2>Verteilung</h2>
+          <div class="ringzeile">
+            <div class="ring"><svg viewBox="0 0 42 42" id="ring"></svg>
+              <div class="mitte" id="ringMitte"></div></div>
+            <div class="legende" id="ringLegende"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="karten k1">
+        <div class="karte">
+          <h2>Nächste 7 Tage <span class="zusatz" id="terminZahl"></span></h2>
+          <div id="termine"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ STUNDENPLAN ============ -->
+    <div class="sicht" id="s-stundenplan">
+      <div class="karte" style="margin-bottom:16px">
+        <h2>Woche</h2>
+        <div class="plan" id="plan"></div>
+      </div>
+      <div class="formkarte">
+        <h2>Veranstaltung eintragen</h2>
+        <div class="form">
+          <div><label for="sTag">Tag</label>
+            <select id="sTag"><option value="0">Montag</option><option value="1">Dienstag</option>
+            <option value="2">Mittwoch</option><option value="3">Donnerstag</option><option value="4">Freitag</option></select></div>
+          <div><label for="sVon">Von</label><input type="time" id="sVon"></div>
+          <div><label for="sBis">Bis</label><input type="time" id="sBis"></div>
+          <div><label for="sTitel">Modul</label><input type="text" id="sTitel" placeholder="Logistik"></div>
+          <div><label for="sRaum">Raum</label><input type="text" id="sRaum" placeholder="optional"></div>
+          <button class="tat" onclick="planHinzu()">Eintragen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MODULE ============ -->
+    <div class="sicht" id="s-module">
+      <div class="karte" style="margin-bottom:16px">
+        <h2>Stunden pro Modul <span class="zusatz" id="modulSumme"></span></h2>
+        <div id="modulliste"></div>
+      </div>
+      <div class="formkarte">
+        <h2>Modul anlegen oder Ziel setzen</h2>
+        <div class="form">
+          <div><label for="mName">Modulname</label><input type="text" id="mName" placeholder="Logistik"></div>
+          <div><label for="mZiel">Zielstunden</label><input type="number" id="mZiel" min="1" placeholder="60"></div>
+          <button class="tat" onclick="modulHinzu()">Speichern</button>
+        </div>
+        <div style="font-size:12.5px;color:var(--dim);margin-top:12px">
+          Module aus dem Stundenplan erscheinen automatisch. Hier nur ergänzen, was keinen festen Termin hat.
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ERFASSEN ============ -->
+    <div class="sicht" id="s-erfassen">
+      <div class="formkarte">
+        <h2>Lernzeit</h2>
+        <div class="form">
+          <div><label for="zDatum">Datum</label><input type="date" id="zDatum"></div>
+          <div><label for="zModul">Modul</label><select id="zModul"></select></div>
+          <div><label for="zStunden">Stunden</label><input type="number" id="zStunden" step="0.25" min="0" placeholder="2"></div>
+          <div><label for="zNotiz">Notiz</label><input type="text" id="zNotiz" placeholder="optional"></div>
+          <button class="tat" onclick="zeitHinzu('studium')">Erfassen</button>
+        </div>
+      </div>
+      <div class="formkarte">
+        <h2>Nebenjob</h2>
+        <div class="form">
+          <div><label for="jDatum">Datum</label><input type="date" id="jDatum"></div>
+          <div><label for="jStunden">Stunden</label><input type="number" id="jStunden" step="0.25" min="0" placeholder="6"></div>
+          <div><label for="jNotiz">Notiz</label><input type="text" id="jNotiz" placeholder="optional"></div>
+          <button class="tat" onclick="zeitHinzu('nebenjob')">Erfassen</button>
+        </div>
+      </div>
+      <div class="formkarte">
+        <h2>Termin oder Deadline</h2>
+        <div class="form">
+          <div><label for="tDatum">Datum</label><input type="date" id="tDatum"></div>
+          <div><label for="tTitel">Titel</label><input type="text" id="tTitel" placeholder="Abgabe Hausarbeit"></div>
+          <div><label for="tTyp">Art</label>
+            <select id="tTyp"><option value="deadline">Deadline</option><option value="termin">Termin</option></select></div>
+          <button class="tat" onclick="terminHinzu()">Eintragen</button>
+        </div>
+      </div>
+      <div class="karte">
+        <h2>Zuletzt erfasst</h2>
+        <div id="letzte"></div>
+      </div>
+    </div>
+
+    <!-- ============ DATEN ============ -->
+    <div class="sicht" id="s-daten">
+      <div class="formkarte">
+        <h2>Sicherung</h2>
+        <div style="font-size:13px;color:var(--dim);margin-bottom:15px">
+          Alles liegt im Speicher dieses Browsers. Beim Leeren des Verlaufs geht es verloren,
+          und andere Geräte sehen es nicht. Lade die Sicherung dort, wo du weiterarbeiten willst.
+        </div>
+        <div class="form">
+          <button class="tat" onclick="exportJson()">Sicherung speichern</button>
+          <button class="tat leise" onclick="document.getElementById('importJson').click()">Sicherung laden</button>
+          <input type="file" id="importJson" accept=".json" style="display:none" onchange="importiereJson(this)">
+        </div>
+      </div>
+      <div class="formkarte">
+        <h2>Zeiten als CSV</h2>
+        <div style="font-size:13px;color:var(--dim);margin-bottom:15px">
+          Für den Kurzbefehl auf dem iPhone. Spalten: datum, art, modul, stunden, notiz.
+        </div>
+        <div class="form">
+          <button class="tat" onclick="exportCsv()">CSV exportieren</button>
+          <button class="tat leise" onclick="document.getElementById('importCsv').click()">CSV einlesen</button>
+          <input type="file" id="importCsv" accept=".csv" style="display:none" onchange="importiereCsv(this)">
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   Daten
+   ========================================================= */
+const SCHLUESSEL = "studienassistent";
+let daten = { module: [], zeiten: [], termine: [], plan: [] };
+const FARBEN = ["#4C7DF0","#F5B544","#35C88F","#A855F7","#F45B69","#38BDF8","#FB923C","#22D3EE"];
+
+function laden(){
+  try{ const r = localStorage.getItem(SCHLUESSEL); if(r) daten = Object.assign(daten, JSON.parse(r)); }
+  catch(e){ console.warn("Daten nicht lesbar", e); }
+}
+function sichern(){
+  try{ localStorage.setItem(SCHLUESSEL, JSON.stringify(daten)); }
+  catch(e){ alert("Speichern nicht möglich. Nutze die Sicherung unter „Daten“."); }
+}
+
+/* =========================================================
+   Hilfen
+   ========================================================= */
+const TAGE = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag"];
+const heute = new Date(); heute.setHours(0,0,0,0);
+function iso(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function ausIso(s){ const d = new Date(s+"T00:00:00"); d.setHours(0,0,0,0); return d; }
+function tageBis(s){ return Math.round((ausIso(s)-heute)/86400000); }
+function std(n){ return n.toFixed(n%1===0?0:2).replace(".",","); }
+function wochenStart(d){ const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function alleModule(){
+  const namen = [];
+  daten.plan.forEach(p => { if(p.titel && !namen.includes(p.titel)) namen.push(p.titel); });
+  daten.module.forEach(m => { if(!namen.includes(m.name)) namen.push(m.name); });
+  daten.zeiten.forEach(z => { if(z.art==="studium" && z.modul && !namen.includes(z.modul)) namen.push(z.modul); });
+  return namen.map((name,i) => {
+    const eigen = daten.module.find(m => m.name === name);
+    return { name, ziel: eigen ? eigen.ziel : null, farbe: FARBEN[i % FARBEN.length] };
+  });
+}
+function stundenFuer(modul){
+  return daten.zeiten.filter(z => z.art==="studium" && z.modul===modul).reduce((s,z)=>s+Number(z.stunden),0);
+}
+function letzteAktivitaet(modul){
+  const e = daten.zeiten.filter(z => z.art==="studium" && z.modul===modul);
+  return e.length ? -tageBis(e.map(z=>z.datum).sort().pop()) : null;
+}
+function summe(filter){ return daten.zeiten.filter(filter).reduce((s,z)=>s+Number(z.stunden),0); }
+
+/* =========================================================
+   Navigation
+   ========================================================= */
+const TITEL = {uebersicht:"Übersicht", stundenplan:"Stundenplan", module:"Module",
+               erfassen:"Erfassen", daten:"Daten"};
+document.getElementById("nav").addEventListener("click", e => {
+  const knopf = e.target.closest("button[data-sicht]"); if(!knopf) return;
+  document.querySelectorAll(".nav button").forEach(b => b.classList.toggle("aktiv", b === knopf));
+  const name = knopf.dataset.sicht;
+  document.querySelectorAll(".sicht").forEach(s => s.classList.toggle("an", s.id === "s"+"-"+name));
+  document.getElementById("sichtTitel").textContent = TITEL[name];
+});
+
+/* =========================================================
+   Kopf und Wetter
+   ========================================================= */
+function zeichneKopf(){
+  document.getElementById("heuteText").textContent =
+    heute.toLocaleDateString("de-DE",{weekday:"long", day:"2-digit", month:"long", year:"numeric"});
+}
+async function ladeWetter(){
+  const feld = document.getElementById("wetter");
+  const url = "https://api.open-meteo.com/v1/forecast?latitude=53.87&longitude=10.69"
+            + "&current=temperature_2m&daily=temperature_2m_max,temperature_2m_min"
+            + "&timezone=Europe%2FBerlin&forecast_days=1";
+  try{
+    const a = await fetch(url); if(!a.ok) throw new Error(a.status);
+    const w = await a.json();
+    feld.innerHTML = '<span class="temp">'+Math.round(w.current.temperature_2m)+'°</span>'
+      + '<small>Lübeck<br>'+Math.round(w.daily.temperature_2m_min[0])+'° bis '
+      + Math.round(w.daily.temperature_2m_max[0])+'°</small>';
+  }catch(e){ feld.innerHTML = '<span class="temp">--</span><small>Wetter nicht<br>abrufbar</small>'; }
+}
+
+/* =========================================================
+   Kennzahlen
+   ========================================================= */
+const IKON = {
+  uhr:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  buch:'<path d="M4 5a2 2 0 012-2h13v18H6a2 2 0 01-2-2z"/><path d="M9 3v18"/>',
+  tasche:'<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/>',
+  fahne:'<path d="M5 21V4h13l-2 4 2 4H5"/>'
+};
+function kachel(titel, wert, fuss, farbe, ikon){
+  return '<div class="karte kennzahl"><div class="oben"><span class="titel">'+titel+'</span>'
+    + '<span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="'+farbe+'" stroke-width="2" '
+    + 'stroke-linecap="round" stroke-linejoin="round">'+ikon+'</svg></span></div>'
+    + '<div class="wert">'+wert+'</div><div class="fuss">'+fuss+'</div></div>';
+}
+function zeichneKennzahlen(){
+  const start = wochenStart(heute);
+  const vorwoche = new Date(start); vorwoche.setDate(vorwoche.getDate()-7);
+  const dieseWoche = summe(z => z.art==="studium" && ausIso(z.datum) >= start);
+  const letzteWoche = summe(z => z.art==="studium" && ausIso(z.datum) >= vorwoche && ausIso(z.datum) < start);
+  const gesamt = summe(z => z.art==="studium");
+  const job = summe(z => z.art==="nebenjob" && ausIso(z.datum) >= start);
+
+  let trend = "keine Vorwoche zum Vergleich";
+  if(letzteWoche > 0){
+    const diff = Math.round((dieseWoche-letzteWoche)/letzteWoche*100);
+    trend = '<span class="'+(diff>=0?"hoch":"runter")+'">'+(diff>=0?"+":"")+diff+' %</span> zur Vorwoche';
+  }
+
+  const naechste = daten.termine.map(t => ({...t, tage: tageBis(t.datum)}))
+    .filter(t => t.tage >= 0).sort((a,b)=>a.tage-b.tage)[0];
+  const dlWert = naechste ? (naechste.tage===0?"heute":naechste.tage===1?"morgen":naechste.tage+" Tage") : "–";
+  const dlFuss = naechste ? esc(naechste.titel) : "nichts eingetragen";
+
+  const module = alleModule();
+  const ruhend = module.filter(m => { const s = letzteAktivitaet(m.name); return s === null || s > 7; }).length;
+
+  document.getElementById("kennzahlen").innerHTML =
+      kachel("Lernzeit diese Woche", std(dieseWoche)+" h", trend, "#4C7DF0", IKON.uhr)
+    + kachel("Lernzeit gesamt", std(gesamt)+" h", module.length+" Module erfasst", "#A855F7", IKON.buch)
+    + kachel("Nebenjob diese Woche", std(job)+" h", "seit Montag", "#35C88F", IKON.tasche)
+    + kachel("Nächster Termin", dlWert, dlFuss, "#F5B544", IKON.fahne);
+
+  if(ruhend && module.length){
+    document.getElementById("kennzahlen").insertAdjacentHTML("beforeend", "");
+  }
+}
+
+/* =========================================================
+   Wochendiagramm
+   ========================================================= */
+function zeichneWochen(){
+  const feld = document.getElementById("wochenDiagramm");
+  const wochen = [];
+  for(let i=7;i>=0;i--){
+    const s = wochenStart(heute); s.setDate(s.getDate()-i*7);
+    const e = new Date(s); e.setDate(e.getDate()+7);
+    const wert = summe(z => z.art==="studium" && ausIso(z.datum)>=s && ausIso(z.datum)<e);
+    wochen.push({marke: s.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}), wert});
+  }
+  const spitze = Math.max(...wochen.map(w=>w.wert), 1);
+  feld.innerHTML = wochen.map(w =>
+    '<div class="saeule"><span class="zahl">'+(w.wert?std(w.wert):"")+'</span>'
+    + '<span class="stab"><i style="height:'+(w.wert/spitze*100)+'%"></i></span>'
+    + '<span class="marke">'+w.marke+'</span></div>').join("");
+}
+
+/* =========================================================
+   Ring
+   ========================================================= */
+function zeichneRing(){
+  const svg = document.getElementById("ring");
+  const mitte = document.getElementById("ringMitte");
+  const legende = document.getElementById("ringLegende");
+  const module = alleModule().map(m => ({...m, std: stundenFuer(m.name)}))
+                             .filter(m => m.std > 0).sort((a,b)=>b.std-a.std);
+  const gesamt = module.reduce((s,m)=>s+m.std,0);
+
+  if(!gesamt){
+    svg.innerHTML = '<circle cx="21" cy="21" r="15.9" fill="none" stroke="#272B3E" stroke-width="5"/>';
+    mitte.innerHTML = '<b>0 h</b><span>noch nichts</span>';
+    legende.innerHTML = '<div style="color:var(--dim);font-size:13px">Erfasse deine erste Lernzeit.</div>';
+    return;
+  }
+  let versatz = 25;
+  svg.innerHTML = '<circle cx="21" cy="21" r="15.9" fill="none" stroke="#272B3E" stroke-width="5"/>'
+    + module.map(m => {
+        const anteil = m.std/gesamt*100;
+        const kreis = '<circle cx="21" cy="21" r="15.9" fill="none" stroke="'+m.farbe+'" stroke-width="5"'
+          + ' stroke-dasharray="'+(anteil-1.2)+' '+(101.2-anteil)+'" stroke-dashoffset="'+versatz+'"'
+          + ' transform="rotate(-90 21 21)" stroke-linecap="round"/>';
+        versatz = (versatz - anteil + 100) % 100;
+        return kreis;
+      }).join("");
+  mitte.innerHTML = '<b>'+std(gesamt)+' h</b><span>Lernzeit</span>';
+  legende.innerHTML = module.map(m =>
+    '<div><i style="background:'+m.farbe+'"></i><span class="n">'+esc(m.name)+'</span>'
+    + '<span class="v">'+Math.round(m.std/gesamt*100)+' % · '+std(m.std)+' h</span></div>').join("");
+}
+
+/* =========================================================
+   Termine
+   ========================================================= */
+function zeichneTermine(){
+  const ziel = document.getElementById("termine");
+  const liste = daten.termine.map((t,i)=>({...t,i,tage:tageBis(t.datum)}))
+    .filter(t => t.tage>=0 && t.tage<=7).sort((a,b)=>a.tage-b.tage);
+  document.getElementById("terminZahl").textContent = liste.length ? liste.length+" offen" : "";
+  if(!liste.length){
+    ziel.innerHTML = '<div class="leer">Keine Termine in den nächsten sieben Tagen.</div>'; return;
+  }
+  ziel.innerHTML = '<table><thead><tr><th>Wann</th><th>Titel</th><th>Art</th><th>Datum</th><th></th></tr></thead><tbody>'
+    + liste.map(t => {
+        const tageText = t.tage===0?"heute":t.tage===1?"morgen":"in "+t.tage+" Tagen";
+        const pille = t.typ==="deadline"
+          ? '<span class="pille '+(t.tage<=2?"p-rot":"p-gelb")+'">Deadline</span>'
+          : '<span class="pille p-blau">Termin</span>';
+        return '<tr class="reihe"><td>'+tageText+'</td><td>'+esc(t.titel)+'</td><td>'+pille+'</td>'
+          + '<td style="color:var(--dim)">'+ausIso(t.datum).toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})+'</td>'
+          + '<td><button class="weg" onclick="terminWeg('+t.i+')">&times;</button></td></tr>';
+      }).join("") + '</tbody></table>';
+}
+function terminHinzu(){
+  const datum = document.getElementById("tDatum").value;
+  const titel = document.getElementById("tTitel").value.trim();
+  if(!datum || !titel){ alert("Datum und Titel werden gebraucht."); return; }
+  daten.termine.push({datum, titel, typ: document.getElementById("tTyp").value});
+  document.getElementById("tTitel").value = "";
+  sichern(); allesZeichnen();
+}
+function terminWeg(i){ daten.termine.splice(i,1); sichern(); allesZeichnen(); }
+
+/* =========================================================
+   Stundenplan
+   ========================================================= */
+function zeichnePlan(){
+  const heuteIndex = (heute.getDay()+6)%7;
+  document.getElementById("plan").innerHTML = TAGE.map((name,nr) => {
+    const bloecke = daten.plan.map((p,i)=>({...p,i})).filter(p => Number(p.tag)===nr)
+      .sort((a,b)=>(a.von||"").localeCompare(b.von||""));
+    const farben = {};
+    alleModule().forEach(m => farben[m.name] = m.farbe);
+    const inhalt = bloecke.map(b =>
+      '<div class="block" style="border-left-color:'+(farben[b.titel]||"#4C7DF0")+'">'
+      + '<span class="zeit">'+b.von+'–'+b.bis+(b.raum?' · '+esc(b.raum):'')+'</span>'+esc(b.titel)
+      + ' <button class="weg" onclick="planWeg('+b.i+')">&times;</button></div>').join("");
+    return '<div class="tag'+(nr===heuteIndex?' heute':'')+'"><h3>'+name+'</h3>'+inhalt+'</div>';
+  }).join("");
+}
+function planHinzu(){
+  const titel = document.getElementById("sTitel").value.trim();
+  const von = document.getElementById("sVon").value, bis = document.getElementById("sBis").value;
+  if(!titel || !von || !bis){ alert("Modul, Von und Bis werden gebraucht."); return; }
+  daten.plan.push({tag: document.getElementById("sTag").value, von, bis, titel,
+    raum: document.getElementById("sRaum").value.trim()});
+  document.getElementById("sTitel").value = ""; document.getElementById("sRaum").value = "";
+  sichern(); allesZeichnen();
+}
+function planWeg(i){ daten.plan.splice(i,1); sichern(); allesZeichnen(); }
+
+/* =========================================================
+   Module
+   ========================================================= */
+function zeichneModule(){
+  const ziel = document.getElementById("modulliste");
+  const module = alleModule().map(m => ({...m, std: stundenFuer(m.name), seit: letzteAktivitaet(m.name)}))
+                             .sort((a,b)=>b.std-a.std);
+  const gesamt = summe(z => z.art==="studium");
+  document.getElementById("modulSumme").textContent = gesamt ? std(gesamt)+" h gesamt" : "";
+  if(!module.length){
+    ziel.innerHTML = '<div class="leer">Noch keine Module. Trag deinen Stundenplan ein, dann erscheinen sie hier.</div>';
+    fuelleAuswahl(); return;
+  }
+  const spitze = Math.max(...module.map(m => Math.max(m.std, m.ziel||0)), 1);
+  ziel.innerHTML = module.map(m => {
+    const seitText = m.seit===null ? "noch nichts erfasst"
+      : m.seit===0 ? "heute gelernt" : "zuletzt vor "+m.seit+(m.seit===1?" Tag":" Tagen");
+    const anteil = gesamt ? Math.round(m.std/gesamt*100) : 0;
+    return '<div class="modulzeile"><div class="z1"><span class="nm">'+esc(m.name)+'</span>'
+      + '<span class="st">'+std(m.std)+(m.ziel?" / "+m.ziel:"")+' h</span></div>'
+      + '<div class="spur"><i style="width:'+(m.std/spitze*100)+'%;background:'+m.farbe+'"></i></div>'
+      + '<div class="z2">'+seitText+(gesamt?' · '+anteil+' % deiner Lernzeit':'')+'</div></div>';
+  }).join("");
+  fuelleAuswahl();
+}
+function fuelleAuswahl(){
+  const aus = document.getElementById("zModul"); const alt = aus.value;
+  const module = alleModule();
+  aus.innerHTML = module.length ? module.map(m=>'<option>'+esc(m.name)+'</option>').join("")
+                                : '<option value="">erst Stundenplan füllen</option>';
+  if(alt) aus.value = alt;
+}
+function modulHinzu(){
+  const name = document.getElementById("mName").value.trim();
+  if(!name){ alert("Name wird gebraucht."); return; }
+  const ziel = Number(document.getElementById("mZiel").value) || null;
+  const da = daten.module.find(m => m.name === name);
+  if(da) da.ziel = ziel; else daten.module.push({name, ziel});
+  document.getElementById("mName").value = ""; document.getElementById("mZiel").value = "";
+  sichern(); allesZeichnen();
+}
+
+/* =========================================================
+   Zeiten
+   ========================================================= */
+function zeitHinzu(art){
+  const p = art==="studium" ? "z" : "j";
+  const datum = document.getElementById(p+"Datum").value || iso(heute);
+  const stunden = Number(document.getElementById(p+"Stunden").value);
+  if(!stunden){ alert("Stunden werden gebraucht."); return; }
+  const modul = art==="studium" ? document.getElementById("zModul").value : "Nebenjob";
+  if(art==="studium" && !modul){ alert("Trag zuerst ein Modul im Stundenplan ein."); return; }
+  daten.zeiten.push({datum, art, modul, stunden, notiz: document.getElementById(p+"Notiz").value.trim()});
+  document.getElementById(p+"Stunden").value = ""; document.getElementById(p+"Notiz").value = "";
+  sichern(); allesZeichnen();
+}
+function zeitWeg(i){ daten.zeiten.splice(i,1); sichern(); allesZeichnen(); }
+
+function zeichneLetzte(){
+  const feld = document.getElementById("letzte");
+  const liste = daten.zeiten.map((z,i)=>({...z,i})).sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,8);
+  if(!liste.length){ feld.innerHTML = '<div class="leer">Noch nichts erfasst.</div>'; return; }
+  feld.innerHTML = '<table><thead><tr><th>Datum</th><th>Was</th><th>Stunden</th><th>Notiz</th><th></th></tr></thead><tbody>'
+    + liste.map(z => '<tr class="reihe"><td style="color:var(--dim)">'
+        + ausIso(z.datum).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})+'</td>'
+        + '<td>'+esc(z.modul)+'</td><td>'+std(Number(z.stunden))+' h</td>'
+        + '<td style="color:var(--dim)">'+esc(z.notiz||"–")+'</td>'
+        + '<td><button class="weg" onclick="zeitWeg('+z.i+')">&times;</button></td></tr>').join("")
+    + '</tbody></table>';
+}
+
+/* =========================================================
+   Import und Export
+   ========================================================= */
+function herunterladen(inhalt, name, typ){
+  const blob = new Blob([inhalt], {type: typ});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function exportJson(){ herunterladen(JSON.stringify(daten,null,2), "studienassistent-sicherung.json", "application/json"); }
+function importiereJson(feld){
+  const d = feld.files[0]; if(!d) return;
+  const l = new FileReader();
+  l.onload = () => {
+    try{
+      const neu = JSON.parse(l.result);
+      if(!confirm("Sicherung laden? Die aktuellen Daten werden ersetzt.")) return;
+      daten = Object.assign({module:[],zeiten:[],termine:[],plan:[]}, neu);
+      sichern(); allesZeichnen();
+    }catch(e){ alert("Datei nicht lesbar. Ist es eine Sicherung aus diesem Dashboard?"); }
+  };
+  l.readAsText(d); feld.value = "";
+}
+function exportCsv(){
+  const zeilen = ["datum,art,modul,stunden,notiz"].concat(
+    daten.zeiten.map(z => [z.datum,z.art,z.modul,z.stunden,(z.notiz||"").replace(/,/g,";")].join(",")));
+  herunterladen(zeilen.join("\n"), "lernzeiten.csv", "text/csv");
+}
+function importiereCsv(feld){
+  const d = feld.files[0]; if(!d) return;
+  const l = new FileReader();
+  l.onload = () => {
+    const zeilen = l.result.split(/\r?\n/).filter(z=>z.trim());
+    let neu = 0;
+    zeilen.slice(1).forEach(z => {
+      const t = z.split(","); const datum = (t[0]||"").trim(), stunden = Number(t[3]);
+      if(!datum || !stunden) return;
+      daten.zeiten.push({datum, art:(t[1]||"studium").trim(), modul:(t[2]||"").trim(),
+        stunden, notiz:(t[4]||"").trim()});
+      neu++;
+    });
+    sichern(); allesZeichnen(); alert(neu+" Zeilen ergänzt.");
+  };
+  l.readAsText(d); feld.value = "";
+}
+
+/* =========================================================
+   Start
+   ========================================================= */
+function allesZeichnen(){
+  zeichneKopf(); zeichneKennzahlen(); zeichneWochen(); zeichneRing();
+  zeichneTermine(); zeichnePlan(); zeichneModule(); zeichneLetzte();
+}
+laden();
+allesZeichnen();
+ladeWetter();
+["zDatum","jDatum","tDatum"].forEach(id => document.getElementById(id).value = iso(heute));
+</script>
+</body>
+</html>
