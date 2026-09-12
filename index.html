@@ -158,10 +158,34 @@ button:focus-visible{outline:2px solid var(--lila);outline-offset:2px}
   .tag{min-height:auto}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-karte{width:100%;max-width:340px;background:var(--karte);border-radius:16px;padding:28px 26px}
+.login-karte h1{font-size:20px;margin:0 0 4px;font-weight:600}
+.login-karte p{color:var(--dim);font-size:13px;margin:0 0 20px}
+.login-karte .form{flex-direction:column;align-items:stretch;gap:12px}
+.login-karte input{width:100%}
+.login-fehler{color:var(--rot);font-size:12.5px;margin-top:12px;min-height:16px}
+.login-wechsel{background:none;border:0;color:var(--blau);cursor:pointer;font-size:12.5px;padding:0;margin-top:16px}
+.verborgen{display:none}
 </style>
 </head>
 <body>
-<div class="layout">
+
+<div class="login-wrap" id="loginAnsicht">
+  <div class="login-karte">
+    <h1>Studienassistent</h1>
+    <p id="loginUntertitel">Melde dich an, um deine Daten zu sehen.</p>
+    <div class="form">
+      <div><label for="lEmail">E-Mail</label><input type="email" id="lEmail" autocomplete="username"></div>
+      <div><label for="lPasswort">Passwort</label><input type="password" id="lPasswort" autocomplete="current-password"></div>
+      <button class="tat" id="loginKnopf" onclick="anmelden()">Anmelden</button>
+    </div>
+    <div class="login-fehler" id="loginFehler"></div>
+    <button class="login-wechsel" id="loginWechsel" onclick="modusWechseln()">Noch kein Konto? Registrieren</button>
+  </div>
+</div>
+
+<div class="layout verborgen" id="appAnsicht">
 
   <aside class="seitenleiste">
     <div class="marke"><span class="punkt"></span>Studienassistent</div>
@@ -184,8 +208,9 @@ button:focus-visible{outline:2px solid var(--lila);outline-offset:2px}
     </nav>
     <div class="trenner"></div>
     <div class="hinweis">
-      <b>Nur auf diesem Gerät</b>
-      Die Daten liegen im Browser. Sichere sie regelmäßig unter „Daten“.
+      <b>Angemeldet als</b>
+      <span id="kontoEmail">–</span>
+      <button class="login-wechsel" onclick="abmelden()">Abmelden</button>
     </div>
   </aside>
 
@@ -307,8 +332,8 @@ button:focus-visible{outline:2px solid var(--lila);outline-offset:2px}
       <div class="formkarte">
         <h2>Sicherung</h2>
         <div style="font-size:13px;color:var(--dim);margin-bottom:15px">
-          Alles liegt im Speicher dieses Browsers. Beim Leeren des Verlaufs geht es verloren,
-          und andere Geräte sehen es nicht. Lade die Sicherung dort, wo du weiterarbeiten willst.
+          Deine Daten liegen in der Datenbank und sind an dein Konto gebunden. Die Sicherung ist
+          trotzdem sinnvoll als Offline-Kopie oder zum Umzug in ein anderes Konto.
         </div>
         <div class="form">
           <button class="tat" onclick="exportJson()">Sicherung speichern</button>
@@ -332,21 +357,93 @@ button:focus-visible{outline:2px solid var(--lila);outline-offset:2px}
   </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* =========================================================
-   Daten
+   Supabase
    ========================================================= */
-const SCHLUESSEL = "studienassistent";
+const SUPABASE_URL = "https://tarudpjzumpixvyuuvnp.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_vKoImbvTMT20VxzYhtQqrA_eCl_HLkj";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let daten = { module: [], zeiten: [], termine: [], plan: [] };
+let aktuellerUser = null;
+let registrierModus = false;
 const FARBEN = ["#4C7DF0","#F5B544","#35C88F","#A855F7","#F45B69","#38BDF8","#FB923C","#22D3EE"];
 
-function laden(){
-  try{ const r = localStorage.getItem(SCHLUESSEL); if(r) daten = Object.assign(daten, JSON.parse(r)); }
-  catch(e){ console.warn("Daten nicht lesbar", e); }
+function zeigeFehler(meldung){ alert(meldung); }
+
+/* =========================================================
+   Anmeldung
+   ========================================================= */
+function zeigeLogin(){
+  document.getElementById("appAnsicht").classList.add("verborgen");
+  document.getElementById("loginAnsicht").classList.remove("verborgen");
+  document.getElementById("lPasswort").value = "";
+  daten = { module: [], zeiten: [], termine: [], plan: [] };
 }
-function sichern(){
-  try{ localStorage.setItem(SCHLUESSEL, JSON.stringify(daten)); }
-  catch(e){ alert("Speichern nicht möglich. Nutze die Sicherung unter „Daten“."); }
+async function zeigeApp(){
+  document.getElementById("loginAnsicht").classList.add("verborgen");
+  document.getElementById("appAnsicht").classList.remove("verborgen");
+  document.getElementById("kontoEmail").textContent = aktuellerUser.email;
+  await ladenUndZeichnen();
+}
+function modusWechseln(){
+  registrierModus = !registrierModus;
+  document.getElementById("loginKnopf").textContent = registrierModus ? "Registrieren" : "Anmelden";
+  document.getElementById("loginUntertitel").textContent = registrierModus
+    ? "Lege ein neues Konto an." : "Melde dich an, um deine Daten zu sehen.";
+  document.getElementById("loginWechsel").textContent = registrierModus
+    ? "Schon ein Konto? Anmelden" : "Noch kein Konto? Registrieren";
+  document.getElementById("loginFehler").textContent = "";
+}
+async function anmelden(){
+  const email = document.getElementById("lEmail").value.trim();
+  const passwort = document.getElementById("lPasswort").value;
+  const fehlerfeld = document.getElementById("loginFehler");
+  fehlerfeld.textContent = "";
+  if(!email || !passwort){ fehlerfeld.textContent = "E-Mail und Passwort werden gebraucht."; return; }
+  const knopf = document.getElementById("loginKnopf"); knopf.disabled = true;
+  try{
+    const antwort = registrierModus
+      ? await db.auth.signUp({ email, password: passwort })
+      : await db.auth.signInWithPassword({ email, password: passwort });
+    if(antwort.error) throw antwort.error;
+    if(registrierModus && !antwort.data.session){
+      fehlerfeld.textContent = "Konto angelegt. Bitte bestätige die E-Mail und melde dich dann an.";
+      modusWechseln();
+    }
+  }catch(e){
+    fehlerfeld.textContent = e.message || "Anmeldung fehlgeschlagen.";
+  }finally{
+    knopf.disabled = false;
+  }
+}
+async function abmelden(){
+  const { error } = await db.auth.signOut();
+  if(error) zeigeFehler("Abmelden fehlgeschlagen: " + error.message);
+}
+db.auth.onAuthStateChange((_ereignis, session) => {
+  if(session && session.user){ aktuellerUser = session.user; zeigeApp(); }
+  else { aktuellerUser = null; zeigeLogin(); }
+});
+
+/* =========================================================
+   Laden
+   ========================================================= */
+async function ladenUndZeichnen(){
+  try{
+    const [m, z, t, p] = await Promise.all([
+      db.from("module").select("*"),
+      db.from("zeiten").select("*"),
+      db.from("termine").select("*"),
+      db.from("plan").select("*")
+    ]);
+    for(const r of [m,z,t,p]) if(r.error) throw r.error;
+    daten = { module: m.data, zeiten: z.data, termine: t.data, plan: p.data };
+    allesZeichnen();
+  }catch(e){
+    zeigeFehler("Daten konnten nicht geladen werden: " + e.message);
+  }
 }
 
 /* =========================================================
@@ -519,7 +616,7 @@ function zeichneRing(){
    ========================================================= */
 function zeichneTermine(){
   const ziel = document.getElementById("termine");
-  const liste = daten.termine.map((t,i)=>({...t,i,tage:tageBis(t.datum)}))
+  const liste = daten.termine.map(t=>({...t,tage:tageBis(t.datum)}))
     .filter(t => t.tage>=0 && t.tage<=7).sort((a,b)=>a.tage-b.tage);
   document.getElementById("terminZahl").textContent = liste.length ? liste.length+" offen" : "";
   if(!liste.length){
@@ -533,18 +630,27 @@ function zeichneTermine(){
           : '<span class="pille p-blau">Termin</span>';
         return '<tr class="reihe"><td>'+tageText+'</td><td>'+esc(t.titel)+'</td><td>'+pille+'</td>'
           + '<td style="color:var(--dim)">'+ausIso(t.datum).toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})+'</td>'
-          + '<td><button class="weg" onclick="terminWeg('+t.i+')">&times;</button></td></tr>';
+          + '<td><button class="weg" onclick="terminWeg(\''+t.id+'\')">&times;</button></td></tr>';
       }).join("") + '</tbody></table>';
 }
-function terminHinzu(){
+async function terminHinzu(){
   const datum = document.getElementById("tDatum").value;
   const titel = document.getElementById("tTitel").value.trim();
   if(!datum || !titel){ alert("Datum und Titel werden gebraucht."); return; }
-  daten.termine.push({datum, titel, typ: document.getElementById("tTyp").value});
+  const typ = document.getElementById("tTyp").value;
+  const { data, error } = await db.from("termine")
+    .insert({ datum, titel, typ, user_id: aktuellerUser.id }).select().single();
+  if(error){ zeigeFehler("Termin konnte nicht gespeichert werden: " + error.message); return; }
+  daten.termine.push(data);
   document.getElementById("tTitel").value = "";
-  sichern(); allesZeichnen();
+  allesZeichnen();
 }
-function terminWeg(i){ daten.termine.splice(i,1); sichern(); allesZeichnen(); }
+async function terminWeg(id){
+  const { error } = await db.from("termine").delete().eq("id", id);
+  if(error){ zeigeFehler("Termin konnte nicht gelöscht werden: " + error.message); return; }
+  daten.termine = daten.termine.filter(t => String(t.id) !== String(id));
+  allesZeichnen();
+}
 
 /* =========================================================
    Stundenplan
@@ -552,27 +658,36 @@ function terminWeg(i){ daten.termine.splice(i,1); sichern(); allesZeichnen(); }
 function zeichnePlan(){
   const heuteIndex = (heute.getDay()+6)%7;
   document.getElementById("plan").innerHTML = TAGE.map((name,nr) => {
-    const bloecke = daten.plan.map((p,i)=>({...p,i})).filter(p => Number(p.tag)===nr)
+    const bloecke = daten.plan.filter(p => Number(p.tag)===nr)
       .sort((a,b)=>(a.von||"").localeCompare(b.von||""));
     const farben = {};
     alleModule().forEach(m => farben[m.name] = m.farbe);
     const inhalt = bloecke.map(b =>
       '<div class="block" style="border-left-color:'+(farben[b.titel]||"#4C7DF0")+'">'
       + '<span class="zeit">'+b.von+'–'+b.bis+(b.raum?' · '+esc(b.raum):'')+'</span>'+esc(b.titel)
-      + ' <button class="weg" onclick="planWeg('+b.i+')">&times;</button></div>').join("");
+      + ' <button class="weg" onclick="planWeg(\''+b.id+'\')">&times;</button></div>').join("");
     return '<div class="tag'+(nr===heuteIndex?' heute':'')+'"><h3>'+name+'</h3>'+inhalt+'</div>';
   }).join("");
 }
-function planHinzu(){
+async function planHinzu(){
   const titel = document.getElementById("sTitel").value.trim();
   const von = document.getElementById("sVon").value, bis = document.getElementById("sBis").value;
   if(!titel || !von || !bis){ alert("Modul, Von und Bis werden gebraucht."); return; }
-  daten.plan.push({tag: document.getElementById("sTag").value, von, bis, titel,
-    raum: document.getElementById("sRaum").value.trim()});
+  const tag = document.getElementById("sTag").value;
+  const raum = document.getElementById("sRaum").value.trim();
+  const { data, error } = await db.from("plan")
+    .insert({ tag, von, bis, titel, raum, user_id: aktuellerUser.id }).select().single();
+  if(error){ zeigeFehler("Veranstaltung konnte nicht gespeichert werden: " + error.message); return; }
+  daten.plan.push(data);
   document.getElementById("sTitel").value = ""; document.getElementById("sRaum").value = "";
-  sichern(); allesZeichnen();
+  allesZeichnen();
 }
-function planWeg(i){ daten.plan.splice(i,1); sichern(); allesZeichnen(); }
+async function planWeg(id){
+  const { error } = await db.from("plan").delete().eq("id", id);
+  if(error){ zeigeFehler("Eintrag konnte nicht gelöscht werden: " + error.message); return; }
+  daten.plan = daten.plan.filter(p => String(p.id) !== String(id));
+  allesZeichnen();
+}
 
 /* =========================================================
    Module
@@ -606,42 +721,60 @@ function fuelleAuswahl(){
                                 : '<option value="">erst Stundenplan füllen</option>';
   if(alt) aus.value = alt;
 }
-function modulHinzu(){
+async function modulHinzu(){
   const name = document.getElementById("mName").value.trim();
   if(!name){ alert("Name wird gebraucht."); return; }
   const ziel = Number(document.getElementById("mZiel").value) || null;
-  const da = daten.module.find(m => m.name === name);
-  if(da) da.ziel = ziel; else daten.module.push({name, ziel});
+  const vorhanden = daten.module.find(m => m.name === name);
+  if(vorhanden){
+    const { error } = await db.from("module").update({ ziel }).eq("id", vorhanden.id);
+    if(error){ zeigeFehler("Modul konnte nicht gespeichert werden: " + error.message); return; }
+    vorhanden.ziel = ziel;
+  }else{
+    const { data, error } = await db.from("module")
+      .insert({ name, ziel, user_id: aktuellerUser.id }).select().single();
+    if(error){ zeigeFehler("Modul konnte nicht gespeichert werden: " + error.message); return; }
+    daten.module.push(data);
+  }
   document.getElementById("mName").value = ""; document.getElementById("mZiel").value = "";
-  sichern(); allesZeichnen();
+  allesZeichnen();
 }
 
 /* =========================================================
    Zeiten
    ========================================================= */
-function zeitHinzu(art){
+async function zeitHinzu(art){
   const p = art==="studium" ? "z" : "j";
   const datum = document.getElementById(p+"Datum").value || iso(heute);
   const stunden = Number(document.getElementById(p+"Stunden").value);
   if(!stunden){ alert("Stunden werden gebraucht."); return; }
   const modul = art==="studium" ? document.getElementById("zModul").value : "Nebenjob";
   if(art==="studium" && !modul){ alert("Trag zuerst ein Modul im Stundenplan ein."); return; }
-  daten.zeiten.push({datum, art, modul, stunden, notiz: document.getElementById(p+"Notiz").value.trim()});
+  const notiz = document.getElementById(p+"Notiz").value.trim();
+  const { data, error } = await db.from("zeiten")
+    .insert({ datum, art, modul, stunden, notiz, user_id: aktuellerUser.id }).select().single();
+  if(error){ zeigeFehler("Zeit konnte nicht gespeichert werden: " + error.message); return; }
+  daten.zeiten.push(data);
   document.getElementById(p+"Stunden").value = ""; document.getElementById(p+"Notiz").value = "";
-  sichern(); allesZeichnen();
+  allesZeichnen();
 }
-function zeitWeg(i){ daten.zeiten.splice(i,1); sichern(); allesZeichnen(); }
+async function zeitWeg(id){
+  const { error } = await db.from("zeiten").delete().eq("id", id);
+  if(error){ zeigeFehler("Eintrag konnte nicht gelöscht werden: " + error.message); return; }
+  daten.zeiten = daten.zeiten.filter(z => String(z.id) !== String(id));
+  allesZeichnen();
+}
 
 function zeichneLetzte(){
   const feld = document.getElementById("letzte");
-  const liste = daten.zeiten.map((z,i)=>({...z,i})).sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,8);
+  const liste = daten.zeiten.slice().sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,8);
   if(!liste.length){ feld.innerHTML = '<div class="leer">Noch nichts erfasst.</div>'; return; }
   feld.innerHTML = '<table><thead><tr><th>Datum</th><th>Was</th><th>Stunden</th><th>Notiz</th><th></th></tr></thead><tbody>'
     + liste.map(z => '<tr class="reihe"><td style="color:var(--dim)">'
         + ausIso(z.datum).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})+'</td>'
         + '<td>'+esc(z.modul)+'</td><td>'+std(Number(z.stunden))+' h</td>'
         + '<td style="color:var(--dim)">'+esc(z.notiz||"–")+'</td>'
-        + '<td><button class="weg" onclick="zeitWeg('+z.i+')">&times;</button></td></tr>').join("")
+        + '<td><button class="weg" onclick="zeitWeg(\''+z.id+'\')">&times;</button></td></tr>').join("")
     + '</tbody></table>';
 }
 
@@ -654,19 +787,42 @@ function herunterladen(inhalt, name, typ){
   a.href = URL.createObjectURL(blob); a.download = name; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
-function exportJson(){ herunterladen(JSON.stringify(daten,null,2), "studienassistent-sicherung.json", "application/json"); }
+function saubereKopie(){
+  return {
+    module: daten.module.map(({name, ziel}) => ({name, ziel})),
+    zeiten: daten.zeiten.map(({datum, art, modul, stunden, notiz}) => ({datum, art, modul, stunden, notiz})),
+    termine: daten.termine.map(({datum, titel, typ}) => ({datum, titel, typ})),
+    plan: daten.plan.map(({tag, von, bis, titel, raum}) => ({tag, von, bis, titel, raum}))
+  };
+}
+function exportJson(){ herunterladen(JSON.stringify(saubereKopie(),null,2), "studienassistent-sicherung.json", "application/json"); }
 function importiereJson(feld){
   const d = feld.files[0]; if(!d) return;
   const l = new FileReader();
-  l.onload = () => {
+  l.onload = async () => {
+    let neu;
+    try{ neu = JSON.parse(l.result); }
+    catch(e){ alert("Datei nicht lesbar. Ist es eine Sicherung aus diesem Dashboard?"); feld.value = ""; return; }
+    if(!confirm("Sicherung laden? Die aktuellen Daten werden ersetzt.")){ feld.value = ""; return; }
+    neu = Object.assign({module:[],zeiten:[],termine:[],plan:[]}, neu);
     try{
-      const neu = JSON.parse(l.result);
-      if(!confirm("Sicherung laden? Die aktuellen Daten werden ersetzt.")) return;
-      daten = Object.assign({module:[],zeiten:[],termine:[],plan:[]}, neu);
-      sichern(); allesZeichnen();
-    }catch(e){ alert("Datei nicht lesbar. Ist es eine Sicherung aus diesem Dashboard?"); }
+      for(const tabelle of ["module","zeiten","termine","plan"]){
+        const { error } = await db.from(tabelle).delete().eq("user_id", aktuellerUser.id);
+        if(error) throw error;
+      }
+      for(const tabelle of ["module","zeiten","termine","plan"]){
+        const zeilen = (neu[tabelle]||[]).map(z => ({...z, user_id: aktuellerUser.id}));
+        if(!zeilen.length) continue;
+        const { error } = await db.from(tabelle).insert(zeilen);
+        if(error) throw error;
+      }
+      await ladenUndZeichnen();
+    }catch(e){
+      zeigeFehler("Sicherung konnte nicht geladen werden: " + e.message);
+    }
+    feld.value = "";
   };
-  l.readAsText(d); feld.value = "";
+  l.readAsText(d);
 }
 function exportCsv(){
   const zeilen = ["datum,art,modul,stunden,notiz"].concat(
@@ -676,19 +832,24 @@ function exportCsv(){
 function importiereCsv(feld){
   const d = feld.files[0]; if(!d) return;
   const l = new FileReader();
-  l.onload = () => {
+  l.onload = async () => {
     const zeilen = l.result.split(/\r?\n/).filter(z=>z.trim());
-    let neu = 0;
+    const neu = [];
     zeilen.slice(1).forEach(z => {
       const t = z.split(","); const datum = (t[0]||"").trim(), stunden = Number(t[3]);
       if(!datum || !stunden) return;
-      daten.zeiten.push({datum, art:(t[1]||"studium").trim(), modul:(t[2]||"").trim(),
-        stunden, notiz:(t[4]||"").trim()});
-      neu++;
+      neu.push({datum, art:(t[1]||"studium").trim(), modul:(t[2]||"").trim(),
+        stunden, notiz:(t[4]||"").trim(), user_id: aktuellerUser.id});
     });
-    sichern(); allesZeichnen(); alert(neu+" Zeilen ergänzt.");
+    if(!neu.length){ alert("Keine gültigen Zeilen gefunden."); feld.value = ""; return; }
+    const { data, error } = await db.from("zeiten").insert(neu).select();
+    if(error){ zeigeFehler("CSV konnte nicht eingelesen werden: " + error.message); feld.value = ""; return; }
+    daten.zeiten.push(...data);
+    allesZeichnen();
+    alert(data.length+" Zeilen ergänzt.");
+    feld.value = "";
   };
-  l.readAsText(d); feld.value = "";
+  l.readAsText(d);
 }
 
 /* =========================================================
@@ -698,10 +859,16 @@ function allesZeichnen(){
   zeichneKopf(); zeichneKennzahlen(); zeichneWochen(); zeichneRing();
   zeichneTermine(); zeichnePlan(); zeichneModule(); zeichneLetzte();
 }
-laden();
-allesZeichnen();
+zeichneKopf();
 ladeWetter();
 ["zDatum","jDatum","tDatum"].forEach(id => document.getElementById(id).value = iso(heute));
+
+(async () => {
+  const { data: { session }, error } = await db.auth.getSession();
+  if(error){ zeigeFehler("Sitzung konnte nicht geprüft werden: " + error.message); zeigeLogin(); return; }
+  if(session && session.user){ aktuellerUser = session.user; await zeigeApp(); }
+  else { zeigeLogin(); }
+})();
 </script>
 </body>
 </html>
