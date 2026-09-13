@@ -315,9 +315,19 @@ button:focus-visible{outline:2px solid var(--lila);outline-offset:2px}
         <h2>Termin oder Deadline</h2>
         <div class="form">
           <div><label for="tDatum">Datum</label><input type="date" id="tDatum"></div>
+          <div><label for="tUhrzeit">Uhrzeit</label><input type="time" id="tUhrzeit"></div>
           <div><label for="tTitel">Titel</label><input type="text" id="tTitel" placeholder="Abgabe Hausarbeit"></div>
           <div><label for="tTyp">Art</label>
             <select id="tTyp"><option value="deadline">Deadline</option><option value="termin">Termin</option></select></div>
+          <div><label for="tWiederholung">Wiederholung</label>
+            <select id="tWiederholung" onchange="wiederholungAendern()">
+              <option value="einmalig">einmalig</option>
+              <option value="taeglich">täglich</option>
+              <option value="woechentlich">wöchentlich</option>
+              <option value="monatlich">monatlich</option>
+              <option value="jaehrlich">jährlich</option>
+            </select></div>
+          <div id="tEndeWrap" class="verborgen"><label for="tEnde">Ende</label><input type="date" id="tEnde"></div>
           <button class="tat" onclick="terminHinzu()">Eintragen</button>
         </div>
       </div>
@@ -540,8 +550,8 @@ function zeichneKennzahlen(){
     trend = '<span class="'+(diff>=0?"hoch":"runter")+'">'+(diff>=0?"+":"")+diff+' %</span> zur Vorwoche';
   }
 
-  const naechste = daten.termine.map(t => ({...t, tage: tageBis(t.datum)}))
-    .filter(t => t.tage >= 0).sort((a,b)=>a.tage-b.tage)[0];
+  const naechste = daten.termine.map(t => ({...t, tage: naechstesVorkommen(t)}))
+    .filter(t => t.tage !== null).sort((a,b)=>a.tage-b.tage)[0];
   const dlWert = naechste ? (naechste.tage===0?"heute":naechste.tage===1?"morgen":naechste.tage+" Tage") : "–";
   const dlFuss = naechste ? esc(naechste.titel) : "nichts eingetragen";
 
@@ -614,35 +624,80 @@ function zeichneRing(){
 /* =========================================================
    Termine
    ========================================================= */
+function terminAnTag(t, tag){
+  const start = ausIso(t.datum);
+  if(tag < start) return false;
+  const wdh = t.wiederholung || "einmalig";
+  if(wdh === "einmalig") return iso(tag) === t.datum;
+  if(t.ende && tag > ausIso(t.ende)) return false;
+  const tageDiff = Math.round((tag-start)/86400000);
+  switch(wdh){
+    case "taeglich": return true;
+    case "woechentlich": return tageDiff % 7 === 0;
+    case "monatlich": return tag.getDate() === start.getDate();
+    case "jaehrlich": return tag.getDate() === start.getDate() && tag.getMonth() === start.getMonth();
+    default: return false;
+  }
+}
+function naechstesVorkommen(t){
+  const wdh = t.wiederholung || "einmalig";
+  if(wdh === "einmalig"){
+    const d = tageBis(t.datum);
+    return d>=0 ? d : null;
+  }
+  for(let i=0;i<=400;i++){
+    const tag = new Date(heute); tag.setDate(tag.getDate()+i);
+    if(terminAnTag(t, tag)) return i;
+  }
+  return null;
+}
 function zeichneTermine(){
   const ziel = document.getElementById("termine");
-  const liste = daten.termine.map(t=>({...t,tage:tageBis(t.datum)}))
-    .filter(t => t.tage>=0 && t.tage<=7).sort((a,b)=>a.tage-b.tage);
+  const liste = [];
+  daten.termine.forEach(t => {
+    for(let i=0;i<=7;i++){
+      const tag = new Date(heute); tag.setDate(tag.getDate()+i);
+      if(terminAnTag(t, tag)) liste.push({...t, tage:i, datumAnzeige: iso(tag)});
+    }
+  });
+  liste.sort((a,b)=> a.tage-b.tage || (a.uhrzeit||"").localeCompare(b.uhrzeit||""));
   document.getElementById("terminZahl").textContent = liste.length ? liste.length+" offen" : "";
   if(!liste.length){
     ziel.innerHTML = '<div class="leer">Keine Termine in den nächsten sieben Tagen.</div>'; return;
   }
   ziel.innerHTML = '<table><thead><tr><th>Wann</th><th>Titel</th><th>Art</th><th>Datum</th><th></th></tr></thead><tbody>'
     + liste.map(t => {
-        const tageText = t.tage===0?"heute":t.tage===1?"morgen":"in "+t.tage+" Tagen";
+        let tageText = t.tage===0?"heute":t.tage===1?"morgen":"in "+t.tage+" Tagen";
+        if(t.uhrzeit) tageText += " · "+String(t.uhrzeit).slice(0,5);
         const pille = t.typ==="deadline"
           ? '<span class="pille '+(t.tage<=2?"p-rot":"p-gelb")+'">Deadline</span>'
           : '<span class="pille p-blau">Termin</span>';
         return '<tr class="reihe"><td>'+tageText+'</td><td>'+esc(t.titel)+'</td><td>'+pille+'</td>'
-          + '<td style="color:var(--dim)">'+ausIso(t.datum).toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})+'</td>'
+          + '<td style="color:var(--dim)">'+ausIso(t.datumAnzeige).toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"short"})+'</td>'
           + '<td><button class="weg" onclick="terminWeg(\''+t.id+'\')">&times;</button></td></tr>';
       }).join("") + '</tbody></table>';
+}
+function wiederholungAendern(){
+  const wdh = document.getElementById("tWiederholung").value;
+  document.getElementById("tEndeWrap").classList.toggle("verborgen", wdh === "einmalig");
 }
 async function terminHinzu(){
   const datum = document.getElementById("tDatum").value;
   const titel = document.getElementById("tTitel").value.trim();
   if(!datum || !titel){ alert("Datum und Titel werden gebraucht."); return; }
   const typ = document.getElementById("tTyp").value;
+  const uhrzeit = document.getElementById("tUhrzeit").value || null;
+  const wiederholung = document.getElementById("tWiederholung").value || "einmalig";
+  const ende = wiederholung !== "einmalig" ? (document.getElementById("tEnde").value || null) : null;
   const { data, error } = await db.from("termine")
-    .insert({ datum, titel, typ, user_id: aktuellerUser.id }).select().single();
+    .insert({ datum, titel, typ, uhrzeit, wiederholung, ende, user_id: aktuellerUser.id }).select().single();
   if(error){ zeigeFehler("Termin konnte nicht gespeichert werden: " + error.message); return; }
   daten.termine.push(data);
   document.getElementById("tTitel").value = "";
+  document.getElementById("tUhrzeit").value = "";
+  document.getElementById("tWiederholung").value = "einmalig";
+  document.getElementById("tEnde").value = "";
+  document.getElementById("tEndeWrap").classList.add("verborgen");
   allesZeichnen();
 }
 async function terminWeg(id){
@@ -791,7 +846,7 @@ function saubereKopie(){
   return {
     module: daten.module.map(({name, ziel}) => ({name, ziel})),
     zeiten: daten.zeiten.map(({datum, art, modul, stunden, notiz}) => ({datum, art, modul, stunden, notiz})),
-    termine: daten.termine.map(({datum, titel, typ}) => ({datum, titel, typ})),
+    termine: daten.termine.map(({datum, titel, typ, uhrzeit, wiederholung, ende}) => ({datum, titel, typ, uhrzeit, wiederholung, ende})),
     plan: daten.plan.map(({tag, von, bis, titel, raum}) => ({tag, von, bis, titel, raum}))
   };
 }
