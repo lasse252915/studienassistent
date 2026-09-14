@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Studienassistent</title>
+<script>
+(function(){
+  try{
+    var gespeichert = localStorage.getItem("theme");
+    var modus = gespeichert || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "hell" : "dunkel");
+    document.documentElement.setAttribute("data-theme", modus);
+  }catch(e){}
+})();
+</script>
 <style>
 :root{
   --bg:#151824;
@@ -18,7 +27,27 @@
   --gruen:#35C88F;
   --lila:#A855F7;
   --rot:#F45B69;
+  --nav-aktiv:var(--karte);
+  --nav-hover:var(--karte);
+  --schatten:none;
   --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+:root[data-theme="hell"]{
+  --bg:#F3F4F7;
+  --seite:#FFFFFF;
+  --karte:#FFFFFF;
+  --karte2:#EEF0F4;
+  --rand:#E2E4EA;
+  --text:#1F2430;
+  --dim:#666B7A;
+  --blau:#2A5EDB;
+  --gelb:#9C6300;
+  --gruen:#11875C;
+  --lila:#8324D6;
+  --rot:#D6293F;
+  --nav-aktiv:#E4ECFB;
+  --nav-hover:#F1F3F8;
+  --schatten:0 1px 2px rgba(20,24,38,.05),0 10px 24px rgba(20,24,38,.08);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -36,11 +65,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .nav button{display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;border:0;
   border-radius:11px;background:transparent;color:var(--dim);font-family:var(--sans);font-size:14px;
   cursor:pointer;text-align:left;transition:background .15s,color .15s}
-.nav button:hover{background:var(--karte);color:var(--text)}
-.nav button.aktiv{background:var(--karte);color:var(--text);font-weight:500}
+.nav button:hover{background:var(--nav-hover);color:var(--text)}
+.nav button.aktiv{background:var(--nav-aktiv);color:var(--text);font-weight:500}
 .nav button svg{width:17px;height:17px;flex-shrink:0;opacity:.85}
 .trenner{height:1px;background:var(--rand);margin:18px 8px}
-.hinweis{margin-top:auto;background:var(--karte);border-radius:14px;padding:15px;font-size:12.5px;color:var(--dim)}
+.hinweis{margin-top:auto;background:var(--karte);border-radius:14px;padding:15px;font-size:12.5px;color:var(--dim);box-shadow:var(--schatten)}
 .hinweis b{color:var(--text);display:block;margin-bottom:5px;font-size:13px;font-weight:600}
 
 /* ---------- Hauptbereich ---------- */
@@ -49,13 +78,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 .kopf h1{font-size:26px;font-weight:600;margin:0;letter-spacing:-.02em}
 .datumsfeld{background:var(--karte);border:1px solid var(--rand);border-radius:11px;
   padding:8px 14px;font-size:13px;color:var(--dim)}
+.theme-schalter{display:flex;align-items:center;gap:2px;background:var(--karte2);border-radius:10px;
+  padding:3px;flex-shrink:0}
+.theme-schalter button{display:flex;align-items:center;justify-content:center;width:28px;height:28px;
+  border:0;border-radius:8px;background:transparent;color:var(--dim);cursor:pointer;
+  transition:background .15s,color .15s}
+.theme-schalter button:hover{color:var(--text)}
+.theme-schalter button.aktiv{background:var(--karte);color:var(--text);box-shadow:var(--schatten)}
+.theme-schalter button svg{width:15px;height:15px}
 
 /* ---------- Karten ---------- */
 .karten{display:grid;gap:16px;margin-bottom:16px}
 .k4{grid-template-columns:repeat(4,1fr)}
 .k2{grid-template-columns:2fr 1fr}
 .k1{grid-template-columns:1fr}
-.karte{background:var(--karte);border-radius:16px;padding:19px 21px}
+.karte{background:var(--karte);border-radius:16px;padding:19px 21px;box-shadow:var(--schatten)}
 .karte h2{font-size:15px;font-weight:600;margin:0 0 16px;display:flex;justify-content:space-between;
   align-items:center;gap:12px}
 .karte h2 .zusatz{font-size:12.5px;color:var(--dim);font-weight:400}
@@ -155,7 +192,7 @@ tr.reihe td:last-child{border-radius:0 10px 10px 0;text-align:right}
 }
 
 /* Formulare */
-.formkarte{background:var(--karte);border-radius:16px;padding:19px 21px;margin-bottom:16px}
+.formkarte{background:var(--karte);border-radius:16px;padding:19px 21px;margin-bottom:16px;box-shadow:var(--schatten)}
 .form{display:flex;flex-wrap:wrap;gap:11px;align-items:flex-end}
 label{font-size:11.5px;color:var(--dim);display:block;margin-bottom:5px}
 input,select{font-family:var(--sans);font-size:13.5px;padding:9px 11px;border:1px solid var(--rand);
@@ -188,7 +225,7 @@ button:focus-visible{outline:2px solid var(--lila);outline-offset:2px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.login-karte{width:100%;max-width:340px;background:var(--karte);border-radius:16px;padding:28px 26px}
+.login-karte{width:100%;max-width:340px;background:var(--karte);border-radius:16px;padding:28px 26px;box-shadow:var(--schatten)}
 .login-karte h1{font-size:20px;margin:0 0 4px;font-weight:600}
 .login-karte p{color:var(--dim);font-size:13px;margin:0 0 20px}
 .login-karte .form{flex-direction:column;align-items:stretch;gap:12px}
@@ -251,6 +288,14 @@ button:focus-visible{outline:2px solid var(--lila);outline-offset:2px}
       <div>
         <h1 id="sichtTitel">Übersicht</h1>
         <div style="color:var(--dim);font-size:13px;margin-top:3px" id="heuteText"></div>
+      </div>
+      <div class="theme-schalter" role="group" aria-label="Farbmodus">
+        <button type="button" data-modus="hell" onclick="themeSetzen('hell')" aria-label="Heller Modus" title="Heller Modus">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+        <button type="button" data-modus="dunkel" onclick="themeSetzen('dunkel')" aria-label="Dunkler Modus" title="Dunkler Modus">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z"/></svg>
+        </button>
       </div>
     </div>
 
@@ -429,6 +474,18 @@ let wetter = null;
 const FARBEN = ["#4C7DF0","#F5B544","#35C88F","#A855F7","#F45B69","#38BDF8","#FB923C","#22D3EE"];
 
 function zeigeFehler(meldung){ alert(meldung); }
+
+/* =========================================================
+   Farbmodus
+   ========================================================= */
+function themeAnwenden(modus){
+  document.documentElement.setAttribute("data-theme", modus);
+  document.querySelectorAll(".theme-schalter button").forEach(b => b.classList.toggle("aktiv", b.dataset.modus === modus));
+}
+function themeSetzen(modus){
+  try{ localStorage.setItem("theme", modus); }catch(e){}
+  themeAnwenden(modus);
+}
 
 /* =========================================================
    Anmeldung
@@ -647,13 +704,13 @@ function zeichneRing(){
   const gesamt = module.reduce((s,m)=>s+m.std,0);
 
   if(!gesamt){
-    svg.innerHTML = '<circle cx="21" cy="21" r="15.9" fill="none" stroke="#272B3E" stroke-width="5"/>';
+    svg.innerHTML = '<circle cx="21" cy="21" r="15.9" fill="none" style="stroke:var(--karte2)" stroke-width="5"/>';
     mitte.innerHTML = '<b>0 h</b><span>noch nichts</span>';
     legende.innerHTML = '<div style="color:var(--dim);font-size:13px">Erfasse deine erste Lernzeit.</div>';
     return;
   }
   let versatz = 25;
-  svg.innerHTML = '<circle cx="21" cy="21" r="15.9" fill="none" stroke="#272B3E" stroke-width="5"/>'
+  svg.innerHTML = '<circle cx="21" cy="21" r="15.9" fill="none" style="stroke:var(--karte2)" stroke-width="5"/>'
     + module.map(m => {
         const anteil = m.std/gesamt*100;
         const kreis = '<circle cx="21" cy="21" r="15.9" fill="none" stroke="'+m.farbe+'" stroke-width="5"'
@@ -1023,6 +1080,7 @@ function allesZeichnen(){
   zeichneKopf(); zeichneKennzahlen(); zeichneWochen(); zeichneRing();
   zeichneTermine(); zeichneKalender(); zeichnePlan(); zeichneModule(); zeichneLetzte();
 }
+themeAnwenden(document.documentElement.getAttribute("data-theme") || "dunkel");
 zeichneKopf();
 ladeWetter();
 ["zDatum","jDatum","tDatum"].forEach(id => document.getElementById(id).value = iso(heute));
